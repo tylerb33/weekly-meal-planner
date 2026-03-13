@@ -4,6 +4,8 @@
   "description": "Automation project for weekly family meal planning with sale-aware grocery optimization.",
   "main": "index.js",
   "scripts": {
+    "specials:sync": "node scripts/sync_specials.js",
+    "specials:query": "node scripts/query_specials.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
