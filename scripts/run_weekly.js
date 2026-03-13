@@ -7,6 +7,8 @@ const { spawnSync } = require('child_process');
 const ROOT = process.cwd();
 const PROFILE_PATH = path.join(ROOT, 'config', 'meal_profile.json');
 const PROFILE_EXAMPLE_PATH = path.join(ROOT, 'config', 'meal_profile.example.json');
+const FAVORITES_PATH = path.join(ROOT, 'config', 'favorites.json');
+const FAVORITES_EXAMPLE_PATH = path.join(ROOT, 'config', 'favorites.example.json');
 const DATA_PATH = path.join(ROOT, 'data', 'latest-specials.json');
 const OUT_DIR = path.join(ROOT, 'out');
 
@@ -46,9 +48,18 @@ function bestSaleMatch(ingredient, items) {
   return best?.item || null;
 }
 
-function pickFavoriteMeals(profile) {
-  const all = profile.favorites || [];
-  const take = Math.min(profile.favoritesPerWeek || 2, all.length);
+function loadFavorites() {
+  if (!fs.existsSync(FAVORITES_PATH)) {
+    console.error(`Missing ${FAVORITES_PATH}. Copy ${FAVORITES_EXAMPLE_PATH} and edit.`);
+    process.exit(1);
+  }
+  const data = loadJson(FAVORITES_PATH);
+  return Array.isArray(data.favorites) ? data.favorites : [];
+}
+
+function pickFavoriteMeals(profile, allFavorites) {
+  const all = allFavorites || [];
+  const take = Math.min(profile.favoritesPerWeek || 1, all.length);
   if (!take) return [];
 
   const weekNumber = Math.floor(Date.now() / (1000 * 60 * 60 * 24 * 7));
@@ -109,9 +120,9 @@ function generateSaleMeals(count, specialsItems, existingNames = []) {
   return meals;
 }
 
-function pickMeals(profile, specialsItems) {
-  const mealsPerWeek = profile.mealsPerWeek || 5;
-  const favorites = pickFavoriteMeals(profile);
+function pickMeals(profile, specialsItems, allFavorites) {
+  const mealsPerWeek = profile.mealsPerWeek || 3;
+  const favorites = pickFavoriteMeals(profile, allFavorites);
   const remaining = Math.max(0, mealsPerWeek - favorites.length);
   const generated = generateSaleMeals(remaining, specialsItems, favorites.map(m => m.name));
   return [...favorites, ...generated].slice(0, mealsPerWeek);
@@ -207,9 +218,10 @@ function main() {
 
   runSpecialsSync();
   const profile = loadJson(PROFILE_PATH);
+  const allFavorites = loadFavorites();
   const specials = loadJson(DATA_PATH);
   const specialsItems = specials.items || [];
-  const meals = pickMeals(profile, specialsItems);
+  const meals = pickMeals(profile, specialsItems, allFavorites);
   const shoppingList = buildShoppingList(meals, profile.weeklyStaples || [], specialsItems);
 
   const payload = {

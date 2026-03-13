@@ -1,69 +1,11 @@
 {
   "household": "2 adults + 1 child",
-  "mealsPerWeek": 5,
+  "mealsPerWeek": 3,
   "servings": 3,
   "budgetPerWeek": 130,
   "maxPrepMinutes": 30,
   "sendSchedule": "Saturday 08:00",
-  "favoritesPerWeek": 2,
-  "favorites": [
-    {
-      "name": "Tacos",
-      "ingredients": [
-        "ground beef",
-        "chicken breast",
-        "shredded lettuce",
-        "tomato",
-        "refried beans",
-        "mexican rice",
-        "shredded cheese",
-        "tortillas"
-      ]
-    },
-    {
-      "name": "Salmon Bowl",
-      "ingredients": [
-        "salmon",
-        "frozen rice",
-        "cucumber",
-        "frozen edamame",
-        "shredded carrots"
-      ]
-    },
-    {
-      "name": "Greek Bowl",
-      "ingredients": [
-        "chicken breast",
-        "cucumber",
-        "cherry tomatoes",
-        "kalamata olives",
-        "feta",
-        "tzatziki",
-        "mini pita",
-        "frozen rice"
-      ]
-    },
-    {
-      "name": "Pasta Meal",
-      "ingredients": [
-        "ground beef",
-        "mushrooms",
-        "frozen peas",
-        "pasta sauce",
-        "spinach"
-      ]
-    },
-    {
-      "name": "Chicken Caesar Wraps",
-      "ingredients": [
-        "bagged caesar salad",
-        "chicken breast",
-        "tortilla shells",
-        "sweet potato fries",
-        "tots"
-      ]
-    }
-  ],
+  "favoritesPerWeek": 1,
   "weeklyStaples": [
     "2% milk (half gallon)",
     "eggs (1 dozen)"
