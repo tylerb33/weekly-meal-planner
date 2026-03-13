@@ -1,0 +1,23 @@
+{
+  "name": "weekly-meal-planner",
+  "version": "1.0.0",
+  "description": "Automation project for weekly family meal planning with sale-aware grocery optimization.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tylerb33/weekly-meal-planner.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/tylerb33/weekly-meal-planner/issues"
+  },
+  "homepage": "https://github.com/tylerb33/weekly-meal-planner#readme",
+  "dependencies": {
+    "playwright-core": "^1.58.2"
+  }
+}
