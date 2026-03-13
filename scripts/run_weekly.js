@@ -146,6 +146,29 @@ function buildShoppingList(meals, staples, specialsItems) {
   }));
 }
 
+function isProduceItem(name) {
+  const n = (name || '').toLowerCase();
+  const produceKeywords = [
+    'lettuce', 'tomato', 'cucumber', 'carrot', 'spinach', 'broccoli', 'potato', 'potatoes',
+    'onion', 'garlic', 'lime', 'lemon', 'avocado', 'pepper', 'peppers', 'mushroom', 'mushrooms',
+    'asparagus', 'cabbage', 'apple', 'banana', 'berry', 'berries', 'cherry', 'zucchini', 'edamame'
+  ];
+  return produceKeywords.some(k => n.includes(k));
+}
+
+function sortShoppingList(items) {
+  const produce = [];
+  const other = [];
+  for (const i of items) {
+    if (isProduceItem(i.name)) produce.push(i);
+    else other.push(i);
+  }
+  const byName = (a, b) => (a.name || '').localeCompare(b.name || '');
+  produce.sort(byName);
+  other.sort(byName);
+  return [...produce, ...other];
+}
+
 function saveOutput(payload) {
   fs.mkdirSync(OUT_DIR, { recursive: true });
   const ts = new Date().toISOString().replace(/[:.]/g, '-');
@@ -155,17 +178,20 @@ function saveOutput(payload) {
   fs.writeFileSync(jsonPath, JSON.stringify(payload, null, 2));
 
   const lines = [];
-  lines.push(`# Weekly Meal Plan (${payload.generatedAt.split('T')[0]})`);
+  lines.push(`Weekly Meal Plan (${payload.generatedAt.split('T')[0]})`);
   lines.push('');
-  lines.push('## Meals');
+  lines.push('Meals:');
+  lines.push('');
   payload.meals.forEach((m, idx) => {
-    lines.push(`${idx + 1}. **${m.name}**`);
-    lines.push(`   - Ingredients: ${m.ingredients.join(', ')}`);
+    lines.push(`${idx + 1}. ${m.name}`);
+    lines.push(`   Ingredients: ${m.ingredients.join(', ')}`);
+    lines.push('');
   });
-  lines.push('');
-  lines.push('## Shopping List');
-  payload.shoppingList.forEach((i) => {
-    const saleTag = i.sale?.price ? ' (Sale Item)' : '';
+
+  lines.push('Shopping List (Produce first):');
+  const sortedList = sortShoppingList(payload.shoppingList);
+  sortedList.forEach((i) => {
+    const saleTag = i.sale?.price ? ' [Sale Item]' : '';
     lines.push(`- ${i.name}${saleTag}`);
   });
 
