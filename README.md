@@ -42,6 +42,26 @@ Query an item price locally:
 npm run specials:query -- "Bob's Red Mill Extra Thick Rolled Oats"
 ```
 
+Run weekly planner (sync + 5 meals + shopping list):
+
+```bash
+cp config/meal_profile.example.json config/meal_profile.json
+# edit config/meal_profile.json for your household
+npm run weekly:run
+```
+
+Run fully automated weekly email flow (uses bws secrets):
+
+```bash
+npm run weekly:auto
+```
+
+This will:
+1) run `weekly:run`
+2) read latest plan markdown from `out/`
+3) email it via Gmail SMTP using `GMAIL_USERNAME` + `GMAIL_APP_PASSWORD` from `bws`
+
+Example output includes:
 Run full weekly pipeline (sync + meal plan + shopping list):
 
 ```bash

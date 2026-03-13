@@ -20,9 +20,7 @@ function runSpecialsSync() {
     stdio: 'inherit',
     shell: true,
   });
-  if (r.status !== 0) {
-    throw new Error('specials:sync failed');
-  }
+  if (r.status !== 0) throw new Error('specials:sync failed');
 }
 
 function tokenize(text) {
@@ -39,35 +37,84 @@ function bestSaleMatch(ingredient, items) {
 
   let best = null;
   for (const item of items) {
-    const name = (item.name || '').toLowerCase();
-    const nameTokens = new Set(tokenize(name));
-    const tokenHits = qTokens.reduce((acc, t) => acc + (nameTokens.has(t) ? 1 : 0), 0);
-    const score = tokenHits / qTokens.length;
+    const nameTokens = new Set(tokenize(item.name || ''));
+    const hits = qTokens.reduce((acc, t) => acc + (nameTokens.has(t) ? 1 : 0), 0);
+    const score = hits / qTokens.length;
     if (score < 0.5) continue;
-    if (!best || score > best.score) {
-      best = { score, item };
-    }
+    if (!best || score > best.score) best = { score, item };
   }
   return best?.item || null;
 }
 
-function pickMeals(profile) {
+function pickFavoriteMeals(profile) {
   const all = profile.favorites || [];
-  const mealsPerWeek = profile.mealsPerWeek || 5;
-  const favoritesPerWeek = Math.min(profile.favoritesPerWeek || 2, all.length);
+  const take = Math.min(profile.favoritesPerWeek || 2, all.length);
+  if (!take) return [];
 
-  // deterministic for now: rotate by week number
   const weekNumber = Math.floor(Date.now() / (1000 * 60 * 60 * 24 * 7));
-  const start = weekNumber % (all.length || 1);
-  const rotated = all.length ? [...all.slice(start), ...all.slice(0, start)] : [];
+  const start = weekNumber % all.length;
+  const rotated = [...all.slice(start), ...all.slice(0, start)];
+  return rotated.slice(0, take).map(m => ({ ...m, source: 'favorite' }));
+}
 
-  const selected = [];
-  for (let i = 0; i < Math.min(mealsPerWeek, rotated.length); i++) {
-    selected.push(rotated[i]);
+function generateSaleMeals(count, specialsItems, existingNames = []) {
+  const taken = new Set(existingNames.map(n => n.toLowerCase()));
+  const proteins = specialsItems.filter(i => {
+    const n = (i.name || '').toLowerCase();
+    return /(salmon|chicken|beef|pork|shrimp|turkey|tilapia|trout|catfish)/.test(n);
+  });
+
+  const templates = [
+    {
+      mkName: (p) => `${p} Rice Bowl`,
+      ingredients: (p) => [p, 'frozen rice', 'cucumber', 'shredded carrots', 'frozen edamame']
+    },
+    {
+      mkName: (p) => `Sheet Pan ${p} + Veggies`,
+      ingredients: (p) => [p, 'broccoli', 'baby potatoes', 'olive oil', 'garlic']
+    },
+    {
+      mkName: (p) => `${p} Wrap Night`,
+      ingredients: (p) => [p, 'tortillas', 'shredded lettuce', 'tomato', 'shredded cheese']
+    }
+  ];
+
+  const meals = [];
+  for (const item of proteins) {
+    const proteinName = item.name
+      .replace(/^fresh\s+/i, '')
+      .replace(/^frozen\s+/i, '')
+      .replace(/fillets?/i, '')
+      .trim();
+
+    for (const t of templates) {
+      const name = t.mkName(proteinName);
+      if (taken.has(name.toLowerCase())) continue;
+      taken.add(name.toLowerCase());
+      meals.push({ name, ingredients: t.ingredients(proteinName), source: 'generated' });
+      if (meals.length >= count) return meals;
+    }
   }
 
-  // ensure at least favoritesPerWeek present (already true from selected subset)
-  return selected;
+  while (meals.length < count) {
+    const idx = meals.length + 1;
+    const fallbackName = `Quick Weeknight Dinner ${idx}`;
+    meals.push({
+      name: fallbackName,
+      ingredients: ['protein of choice', 'frozen veggies', 'rice or pasta', 'sauce of choice'],
+      source: 'generated'
+    });
+  }
+
+  return meals;
+}
+
+function pickMeals(profile, specialsItems) {
+  const mealsPerWeek = profile.mealsPerWeek || 5;
+  const favorites = pickFavoriteMeals(profile);
+  const remaining = Math.max(0, mealsPerWeek - favorites.length);
+  const generated = generateSaleMeals(remaining, specialsItems, favorites.map(m => m.name));
+  return [...favorites, ...generated].slice(0, mealsPerWeek);
 }
 
 function buildShoppingList(meals, staples, specialsItems) {
@@ -77,32 +124,24 @@ function buildShoppingList(meals, staples, specialsItems) {
     const key = name.trim().toLowerCase();
     if (!key) return;
     if (!ingredientMap.has(key)) {
-      const sale = bestSaleMatch(name, specialsItems);
       ingredientMap.set(key, {
         name,
         meals: new Set([sourceMeal]),
-        sale,
+        sale: bestSaleMatch(name, specialsItems),
       });
     } else {
       ingredientMap.get(key).meals.add(sourceMeal);
     }
   }
 
-  for (const m of meals) {
-    for (const ing of m.ingredients || []) addIngredient(ing, m.name);
-  }
-
+  for (const m of meals) for (const ing of m.ingredients || []) addIngredient(ing, m.name);
   for (const s of staples || []) addIngredient(s, 'Weekly staple');
 
   return [...ingredientMap.values()].map((x) => ({
     name: x.name,
     usedIn: [...x.meals],
     sale: x.sale
-      ? {
-          name: x.sale.name,
-          price: x.sale.price,
-          validTo: x.sale.validTo,
-        }
+      ? { name: x.sale.name, price: x.sale.price, validTo: x.sale.validTo }
       : null,
   }));
 }
@@ -118,25 +157,17 @@ function saveOutput(payload) {
   const lines = [];
   lines.push(`# Weekly Meal Plan (${payload.generatedAt.split('T')[0]})`);
   lines.push('');
-  lines.push(`- Household: ${payload.profile.household}`);
-  lines.push(`- Meals: ${payload.profile.mealsPerWeek} dinners`);
-  lines.push(`- Budget target: $${payload.profile.budgetPerWeek}`);
-  lines.push(`- Max prep time: ${payload.profile.maxPrepMinutes} min`);
-  lines.push('');
   lines.push('## Meals');
   payload.meals.forEach((m, idx) => {
     lines.push(`${idx + 1}. **${m.name}**`);
     lines.push(`   - Ingredients: ${m.ingredients.join(', ')}`);
   });
   lines.push('');
-  lines.push('## Shopping List (sale-aware)');
-  for (const i of payload.shoppingList) {
-    if (i.sale?.price) {
-      lines.push(`- ${i.name} — SALE MATCH: ${i.sale.name} (${i.sale.price})`);
-    } else {
-      lines.push(`- ${i.name}`);
-    }
-  }
+  lines.push('## Shopping List');
+  payload.shoppingList.forEach((i) => {
+    const saleTag = i.sale?.price ? ' (Sale Item)' : '';
+    lines.push(`- ${i.name}${saleTag}`);
+  });
 
   fs.writeFileSync(mdPath, lines.join('\n') + '\n');
   return { jsonPath, mdPath };
@@ -144,26 +175,20 @@ function saveOutput(payload) {
 
 function main() {
   if (!fs.existsSync(PROFILE_PATH)) {
-    console.error(`Missing ${PROFILE_PATH}. Copy ${PROFILE_EXAMPLE_PATH} to meal_profile.json and edit.`);
+    console.error(`Missing ${PROFILE_PATH}. Copy ${PROFILE_EXAMPLE_PATH} and edit.`);
     process.exit(1);
   }
 
   runSpecialsSync();
-
   const profile = loadJson(PROFILE_PATH);
   const specials = loadJson(DATA_PATH);
   const specialsItems = specials.items || [];
-
-  const meals = pickMeals(profile);
+  const meals = pickMeals(profile, specialsItems);
   const shoppingList = buildShoppingList(meals, profile.weeklyStaples || [], specialsItems);
 
   const payload = {
     generatedAt: new Date().toISOString(),
     profile: {
-      household: profile.household,
-      mealsPerWeek: profile.mealsPerWeek,
-      budgetPerWeek: profile.budgetPerWeek,
-      maxPrepMinutes: profile.maxPrepMinutes,
       sendSchedule: profile.sendSchedule,
     },
     specialsSource: specials.sourceApiUrl,
