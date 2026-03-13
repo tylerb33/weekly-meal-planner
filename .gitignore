@@ -1,5 +1,6 @@
 node_modules/
 out/
 data/
+config/meal_profile.json
 .env
 .DS_Store

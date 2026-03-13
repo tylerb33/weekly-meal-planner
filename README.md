@@ -42,7 +42,19 @@ Query an item price locally:
 npm run specials:query -- "Bob's Red Mill Extra Thick Rolled Oats"
 ```
 
-Example output includes:
+Run full weekly pipeline (sync + meal plan + shopping list):
+
+```bash
+cp config/meal_profile.example.json config/meal_profile.json
+# edit config/meal_profile.json with your household preferences
+npm run weekly:run
+```
+
+The weekly runner writes files to `out/`:
+- `weekly-plan-<timestamp>.json`
+- `weekly-plan-<timestamp>.md`
+
+Example query output includes:
 - matching item names
 - price
 - validity dates
