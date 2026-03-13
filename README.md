@@ -42,11 +42,12 @@ Query an item price locally:
 npm run specials:query -- "Bob's Red Mill Extra Thick Rolled Oats"
 ```
 
-Run weekly planner (sync + 5 meals + shopping list):
+Run weekly planner (sync + meals + shopping list):
 
 ```bash
 cp config/meal_profile.example.json config/meal_profile.json
-# edit config/meal_profile.json for your household
+cp config/favorites.example.json config/favorites.json
+# edit both config files for your household
 npm run weekly:run
 ```
 
